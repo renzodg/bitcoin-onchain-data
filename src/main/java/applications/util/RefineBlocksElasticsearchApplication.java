@@ -49,7 +49,7 @@ public class RefineBlocksElasticsearchApplication {
         SearchRequest searchRequest = new SearchRequest(BITCOIN_BLOCKS_INDEX);
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
         searchSourceBuilder.query(QueryBuilders.boolQuery()
-                .mustNot(QueryBuilders.existsQuery("diffHours")));
+                .mustNot(QueryBuilders.existsQuery("diffSeconds")));
         searchRequest.source(searchSourceBuilder);
         searchRequest.scroll(scroll);
 
@@ -76,12 +76,13 @@ public class RefineBlocksElasticsearchApplication {
                                 blockHeader.getPreviousBlockHash()), RequestOptions.DEFAULT);
 
                         BlockHeader previousBlockHeader = gson.fromJson(getResponse.getSourceAsString(), BlockHeader.class);
-                        System.out.println(blockHeader.getPreviousBlockHash());
+                        long diffSeconds = ChronoUnit.SECONDS.between(previousBlockHeader.getTime(), blockHeader.getTime());
                         long diffMinutes = ChronoUnit.MINUTES.between(previousBlockHeader.getTime(), blockHeader.getTime());
                         long diffHours = ChronoUnit.HOURS.between(previousBlockHeader.getTime(), blockHeader.getTime());
 
                         UpdateRequest request = new UpdateRequest(BITCOIN_BLOCKS_INDEX, blockHeader.getHash())
-                                .doc("diffMinutes", diffMinutes,
+                                .doc("diffSeconds", diffSeconds,
+                                        "diffMinutes", diffMinutes,
                                         "diffHours", diffHours);
                         elasticsearchClient.updateAsync(request, RequestOptions.DEFAULT, new ActionListener<UpdateResponse>() {
                             @Override
@@ -92,11 +93,13 @@ public class RefineBlocksElasticsearchApplication {
                             @Override
                             public void onFailure(Exception e) {
                                 System.err.printf("Something went wrong with %s\n", blockHeader);
+                                e.printStackTrace();
                             }
                         });
 
                     } catch (IOException e) {
                         System.err.printf("Something went wrong with %s\n", blockHeader);
+                        e.printStackTrace();
                     }
                 }
 
