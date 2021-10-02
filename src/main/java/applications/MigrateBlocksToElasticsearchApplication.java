@@ -29,7 +29,7 @@ public class MigrateBlocksToElasticsearchApplication {
     private final RestHighLevelClient elasticsearchClient;
     private final Gson gson;
 
-    private static final int START_HEIGHT_INDEX = 702925;
+    private static final int START_HEIGHT_INDEX = 703248;
 
     public MigrateBlocksToElasticsearchApplication(RPCConnectionConfig config, RestHighLevelClient elasticsearchClient, Gson gson) {
         this.config = config;
@@ -91,12 +91,14 @@ public class MigrateBlocksToElasticsearchApplication {
 
         while (currentBlock.getNextBlockHash() != null && !currentBlock.getNextBlockHash().isBlank()) {
             currentBlock = blockchainService.getBlockHeader(currentBlock.getNextBlockHash());
+            long diffSeconds = ChronoUnit.SECONDS.between(previousBlock.getTime(), currentBlock.getTime());
             long diffMinutes = ChronoUnit.MINUTES.between(previousBlock.getTime(), currentBlock.getTime());
             long diffHours = ChronoUnit.HOURS.between(previousBlock.getTime(), currentBlock.getTime());
 
             IndexRequest request = new IndexRequest("bitcoin-blocks");
             request.id(currentBlock.getHash());
             JsonObject jsonObject = gson.toJsonTree(currentBlock).getAsJsonObject();
+            jsonObject.addProperty("diffSeconds", diffSeconds);
             jsonObject.addProperty("diffMinutes", diffMinutes);
             jsonObject.addProperty("diffHours", diffHours);
             request.source(jsonObject.toString(), XContentType.JSON);
